@@ -12,3 +12,7 @@ Future enhancement
 1. Providing UI for users to change texture and color of the model
 2. Adding other 3D models to enhance the environment
 3. Adding more lighting effects 
+
+Credit to vintage car 3D model
+Old Rusty Car" (https://skfb.ly/LxRy) by Renafox is licensed under Creative Commons Attribution-NonCommercial (http://creativecommons.org/licenses/by-nc/4.0/).
+
