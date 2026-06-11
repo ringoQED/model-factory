@@ -1,4 +1,4 @@
-//********************************************************************************/
+//***************************************************************************************/
 //
 //  Loading and Displaying a 3D Model with React Three Fiber
 //
@@ -9,8 +9,9 @@
 //  2026/6/7 - Basic HDR environment plus loading 3D model
 //  2026/6/8 - Remove HDR background and model auto rotation effect, added point lights
 //  2026/6/9 - Added raycast click to the model and toggle rotation effect on click
+//  2026/6/11 - Fixed the bug of click event not working when clicked outdside the model
 //
-//*********************************************************************************/
+//***************************************************************************************/
 
 import { Canvas, useThree, useFrame, useLoader, extend } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
@@ -28,6 +29,12 @@ function LoadModel({ onModelClick, modelRotationSpeed }) {
     camera.position.set( 3, 3, 5 );
   }, [ camera]);
 
+  // Find the first mesh in the loaded GLTF scene for raycasting
+  const carMesh = useMemo(
+    () => gltf.scene.getObjectByProperty('type', 'Mesh'),
+    [gltf.scene]
+  );
+
   useFrame(() => {
     if ( modelCar.current ) {
       modelCar.current.rotation.y += modelRotationSpeed;
@@ -37,8 +44,10 @@ function LoadModel({ onModelClick, modelRotationSpeed }) {
   return (
     <primitive
       onPointerDown={ (e) => {
-        e.stopPropagation();
-        onModelClick();
+        if (e.object === carMesh) {
+          e.stopPropagation();
+          onModelClick();
+        }
       }}
       ref={ modelCar }
       object={ gltf.scene }
@@ -60,7 +69,7 @@ function App() {
 
   return (
     <>
-      <Canvas >
+      <Canvas onPointerMissed = {() => { console.log('Missed click!'); }} >
         <color attach="background" args={ [ 0.5, 0.5, 0.5 ] } />
         <Suspense fallback={ null }>
           <ambientLight />
