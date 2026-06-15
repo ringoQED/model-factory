@@ -5,8 +5,7 @@ Demo on loading a 3D model and adding other effects
 It serves as a means to learn the React Three Fiber Library, wnich is an advanced library making use of Three.JS
 
 # What is it about?
-It is a demo of loading a 3D model and adding other effects such as toggling rotation when raycast made by mouse click is detected. Previous environment using .hdr files 
-has been removed for simplicity. Real 3D environment making use of other 3D models may be added later.
+It is a demo of loading a 3D model and adding other effects such as toggling rotation when raycast made by mouse click is detected. Environment using .hdr file has been added to show the relection after the car's texture is swapped with a shiny metal. Real 3D environment making use of other 3D models may be added later.
 
 # Future enhancement
 1. Providing UI for users to change texture and color of the model
