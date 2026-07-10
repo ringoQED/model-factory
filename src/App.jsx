@@ -10,29 +10,70 @@
 //  2026/6/8 - Remove HDR background and model auto rotation effect, added point lights
 //  2026/6/9 - Added raycast click to the model and toggle rotation effect on click
 //  2026/6/11 - Fixed the bug of click event not working when clicked outside the model
+//  2026/7/10 - Added a control menu to select different materials for the model
 //
 //***************************************************************************************/
+
+// REMARK : The applyMaterial function will pass the carMaterial state to the model and change 
+// the material of the model accordingly. The carMaterial state is set by the control menu, 
+// which allows the user to select different materials for the model. The useNewTexture state 
+// is used to toggle between the original material and the new material when the model is clicked.
+// But this useNewTexture state is not used in the applyMaterial function, so it is not necessary 
+// to pass it as a prop to the LoadModel component. The applyMaterial function will only change 
+// the material of the model based on the carMaterial state, which is set by the control menu.
 
 import { Canvas, useThree, useFrame, useLoader, extend } from '@react-three/fiber';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { useRef, useEffect, useState, useMemo, Suspense } from 'react';
 import { Stats, OrbitControls, useTexture, Environment } from '@react-three/drei';
 import * as THREE from 'three';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js'
 
 // Importing the texture files for the model
 import diffuse from './assets/images/metal_plate/textures/metal_plate_diffuse.jpg';
 import arm from './assets/images/metal_plate/textures/metal_plate_arm.jpg';
 import normal from './assets/images/metal_plate/textures/metal_plate_normal.jpg';
 
-//import street from './assets/images/modern_evening_street_4k.hdr';
-
-function LoadModel({ onModelClick, modelRotationSpeed, useNewTexture }) {
+function LoadModel({ onModelClick, modelRotationSpeed, useNewTexture, carMaterial }) {
   const originalMaterials = useRef({});
   const modelCar = useRef();
   const gltf = useLoader( GLTFLoader, "/old_rusty_car/scene.gltf" );
   const { camera } = useThree();
 
-  // Load the alternative texture files - Diffuse, ARM, and Normal JPG files
+  const applyMaterial = (materialVariant) => {
+    gltf.scene.traverse((child) => {
+      if (!child.isMesh || !['Object006_Material_#294_0', 'Object007_Material_#295_0'].includes(child.name)) {
+        return;
+      }
+
+      if (materialVariant === 'Shiny') {
+        child.material = new THREE.MeshPhysicalMaterial({
+          map: diffuseMap,
+          normalMap: normalMap,
+          aoMap: armMap,
+          roughnessMap: armMap,
+          metalnessMap: armMap,
+          aoMapIntensity: 1.0,
+          roughness: 1.0,
+          metalness: 1.0,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.05,
+        });
+      } else if (materialVariant === 'Woody') {
+        child.material = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color('#7a4a2b'),
+          roughness: 0.95,
+          metalness: 0.05,
+          clearcoat: 0.2,
+          clearcoatRoughness: 0.8,
+        });
+      } else {
+        child.material = originalMaterials.current[child.name] || child.material;
+      }
+    });
+  };
+
+  // Assign the loaded textures to their respective maps and set the appropriate color spaces
   const [diffuseMap, armMap, normalMap] = useTexture([
     diffuse,
     arm,
@@ -54,6 +95,10 @@ function LoadModel({ onModelClick, modelRotationSpeed, useNewTexture }) {
   }, [gltf.scene]);
 
   useEffect(() => {
+    applyMaterial(carMaterial);
+  }, [carMaterial, diffuseMap, armMap, normalMap, gltf.scene]);
+
+  useEffect(() => {
     camera.position.set( 3, 3, 5 );
   }, [ camera]);
 
@@ -69,47 +114,23 @@ function LoadModel({ onModelClick, modelRotationSpeed, useNewTexture }) {
     }
   });
 
+
   return (
     
       <primitive
+      /* Changing texture will be done in pull down menu, so no need to handle click event here
         onPointerDown={ (e) => {
           if (e.object === carMesh) {
-
-          // Traverse the model and plug in the ARM maps
-            gltf.scene.traverse((child) => {
-              console.log('child name:', child.name);
-              if (child.isMesh && (child.name === 'Object006_Material_#294_0' || child.name === 'Object007_Material_#295_0')) {
-                if (useNewTexture) {
-                  child.material = new THREE.MeshPhysicalMaterial({
-                    map: diffuseMap,
-                    normalMap: normalMap,
-                    
-                    // Feed the same ARM texture into its respective channels
-                    aoMap: armMap,
-                    roughnessMap: armMap,
-                    metalnessMap: armMap,
-
-                    // Calibrate the strength multipliers (1.0 allows the map to dictate the surface)
-                    aoMapIntensity: 1.0,
-                    roughness: 1.0,
-                    metalness: 1.0,
-
-                    // The brand-new showroom finish layers
-                    clearcoat: 1.0,
-                    clearcoatRoughness: 0.05,
-                  })
-                } else {
-                  child.material = originalMaterials.current[child.name];
-                }
-              }
-            })
+            const nextUseNewTexture = !useNewTexture;
+            applyMaterial(nextUseNewTexture ? 'Shiny' : carMaterial);
 
             e.stopPropagation();
-            onModelClick();
+            onModelClick(nextUseNewTexture);
           } else {
             console.log('Clicked outside the model!');
           }
         }}
+        */
         ref={ modelCar }
         object={ gltf.scene }
         scale={ 0.04 }
@@ -120,16 +141,48 @@ function LoadModel({ onModelClick, modelRotationSpeed, useNewTexture }) {
 };
 
 
+// Control menu to select different restaurants as background
+function CtrlMenu ({ setCarMaterial }) {
+
+  useEffect(() => {
+
+    const obj = {
+      CarMaterial : 'Rusty',
+    };
+  
+    const gui = new GUI();
+
+    gui.add( obj, 'CarMaterial', ['Rusty', 'Shiny', 'Woody'] ).onFinishChange( value => {
+    switch( value ) {
+      case 'Rusty':
+        setCarMaterial('Rusty');
+        break;
+      case 'Shiny':
+        setCarMaterial('Shiny');
+        break;
+      case 'Woody':
+        setCarMaterial('Woody');
+        break;
+    }
+    console.log('Selected Car Material:', value);
+  })
+  
+  return () => {
+    gui.destroy()
+  }
+}, [setCarMaterial]);
+}
+
+
 function App() {
+  const [ carMaterial, setCarMaterial ] = useState( 'Rusty' );
   const [ modelRotationSpeed, setModelRotationSpeed ] = useState( 0.001 );
   const [ useNewTexture, setUseNewTexture ] = useState( false );
-  const handleModelClick = () => {
-    setModelRotationSpeed( prevSpeed => prevSpeed === 0.001 ? 0 : 0.001 );
-    setUseNewTexture( prevTexture => !prevTexture ); // Toggle the texture state on click
-    setModelRotationSpeed( prevSpeed => prevSpeed === 0.001 ? 0 : 0.001 );
+  const handleModelClick = (nextUseNewTexture) => {
+    // setModelRotationSpeed( prevSpeed => prevSpeed === 0.001 ? 0 : 0.001 );
+    setUseNewTexture(nextUseNewTexture); // Toggle the texture state on click
+    // setModelRotationSpeed( prevSpeed => prevSpeed === 0.001 ? 0 : 0.001 );
   };
-
-  //const [ background, setBackground ] = useState( street );
 
   return (
     <>
@@ -144,7 +197,8 @@ function App() {
           <pointLight position={ [ -5, 5, -5 ] }  intensity={ 10 } />
           <Stats />
           <OrbitControls enableZoom={ false } enablePan={ false } />
-          <LoadModel onModelClick={ handleModelClick } modelRotationSpeed={ modelRotationSpeed } useNewTexture={ useNewTexture } />
+          <CtrlMenu setCarMaterial={ setCarMaterial } />
+          <LoadModel onModelClick={ handleModelClick } modelRotationSpeed={ modelRotationSpeed } useNewTexture={ useNewTexture } carMaterial={ carMaterial } />
           <Environment preset="sunset" background={ true } />
         </Suspense>
       </Canvas>
